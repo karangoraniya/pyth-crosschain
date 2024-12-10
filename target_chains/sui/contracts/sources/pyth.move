@@ -6,6 +6,7 @@ module pyth::pyth {
     use sui::transfer::{Self};
     use sui::clock::{Self, Clock};
     use sui::package::{UpgradeCap};
+    use sui::object::{Self};
 
     use pyth::event::{Self as pyth_event};
     use pyth::data_source::{Self, DataSource};
@@ -18,6 +19,7 @@ module pyth::pyth {
     use pyth::setup::{Self, DeployerCap};
     use pyth::hot_potato_vector::{Self, HotPotatoVector};
     use pyth::accumulator::{Self};
+    use pyth::price_identifier::{Self};
 
     use wormhole::external_address::{Self};
     use wormhole::vaa::{Self, VAA};
@@ -118,6 +120,36 @@ module pyth::pyth {
 
         // destroy rest of cursor
         cursor::take_rest(accumulator_message_cursor);
+    }
+
+    // Create new object for each price update 
+    public fun create_past_price_feeds(
+        price_info_object: &PriceInfoObject,
+        ctx: &mut TxContext
+    ) {
+        // Get current price data
+        let price_info = price_info::get_price_info_from_price_info_object(price_info_object);
+        let price_feed = price_info::get_price_feed(&price_info);
+        let price = price_feed::get_price(price_feed);
+
+        let price_id = price_info::get_price_identifier(&price_info);
+        let price_id_bytes = price_identifier::get_bytes(&price_id);
+        
+        // Create new object using state module
+        let parsed_price = state::create_parsed_price_info_object(
+            price,
+            price_id_bytes,
+            ctx
+        );
+
+        // Emit event
+        pyth_event::emit_parse_price_info_object(
+            price_id_bytes,
+            state::get_parsed_timestamp(&parsed_price),
+            object::uid_to_inner(state::get_parsed_price_id(&parsed_price))
+        );
+
+        transfer::public_share_object(parsed_price);
     }
 
 
