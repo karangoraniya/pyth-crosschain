@@ -4,10 +4,13 @@ module pyth::state {
     use sui::tx_context::{Self, TxContext};
     use sui::package::{UpgradeCap, UpgradeTicket, UpgradeReceipt};
 
+
     use pyth::data_source::{Self, DataSource};
     use pyth::price_info::{Self};
     use pyth::price_identifier::{Self, PriceIdentifier};
     use pyth::version_control::{Self};
+    use pyth::price::{Price};
+    use pyth::price;
 
     use wormhole::consumed_vaas::{Self, ConsumedVAAs};
     use wormhole::bytes32::{Self, Bytes32};
@@ -52,6 +55,45 @@ module pyth::state {
         // Upgrade capability.
         upgrade_cap: UpgradeCap
     }
+
+    struct ParsedPriceInfoObject has key, store {
+        id: UID,
+        price: Price,
+        timestamp: u64,
+        price_identifier: vector<u8> 
+    }
+
+
+    public fun create_parsed_price_info_object(
+        price: Price,
+        price_id_bytes: vector<u8>,
+        ctx: &mut TxContext
+    ): ParsedPriceInfoObject {
+        ParsedPriceInfoObject {
+            id: object::new(ctx),
+            price,
+            timestamp: price::get_timestamp(&price),
+            price_identifier: price_id_bytes
+        }
+    }
+
+
+    public fun get_parsed_price(object: &ParsedPriceInfoObject): &Price {
+        &object.price
+    }
+
+    public fun get_parsed_price_id(object: &ParsedPriceInfoObject): &UID {
+        &object.id
+    }
+
+    public fun get_parsed_timestamp(object: &ParsedPriceInfoObject): u64 {
+        object.timestamp
+    }
+
+    public fun get_parsed_identifier(object: &ParsedPriceInfoObject): &vector<u8> {
+        &object.price_identifier
+    }
+
 
     public(friend) fun new(
         upgrade_cap: UpgradeCap,
